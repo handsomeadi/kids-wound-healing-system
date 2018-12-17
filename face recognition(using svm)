@@ -1,0 +1,254 @@
+import dlib
+import os
+import cv2
+import time
+import json
+import urllib.request
+import threading
+
+import numpy as np
+
+from sklearn import svm
+from sklearn.externals import joblib
+
+dlibModelDir = "./dlib"
+dlibDetector = dlib.get_frontal_face_detector()
+dlibFacePredictor = dlib.shape_predictor(os.path.join(dlibModelDir,"shape_predictor_68_face_landmarks.dat"))
+dlibFaceRecognition = dlib.face_recognition_model_v1(os.path.join(dlibModelDir,"dlib_face_recognition_resnet_model_v1.dat"))
+
+# Save vector of training data and SVM model
+pathTrain = "./information/facebank.jsdb"
+pathSVM = "./information/svm_trained.pkl"
+
+# Path of train_data_dir and test_data_dir
+pathDirTrain = "./training-data"
+pathDirTest = "./test-data"
+
+class IPcamCapture:
+	def __init__(self, URL):
+		self.Frame = []
+		self.status = False
+		self.isstop = False
+
+		# Get stream of IPcam
+		print(URL)    
+		self.stream = cv2.VideoCapture(URL)
+	
+	def start(self):
+		# Use Thread to get image of IPcam
+		print('IPcam Started!')
+		threading.Thread(target=self.queryframe, args=()).start()
+
+	def stop(self):
+		# Stop the loop of queryframe
+		self.isstop = True
+		print('IPcam Stopped!')
+
+	def getframe(self):
+		# Get image frame (latest)
+		return self.Frame
+
+	def queryframe(self):
+		#bytes = ''
+		while (not self.isstop):
+			self.status, self.Frame = self.stream.read()
+		self.stream.release()
+
+def getFaceDescriptor(img):
+	RGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+	downscale = 0.25
+	# Reduce time of face detecting by resizing image
+	small_Img = cv2.resize(RGB, (0,0), fx=downscale, fy=downscale)
+	dets = dlibDetector(small_Img, 1)
+	
+	if len(dets) == 0:
+		return  None , None
+	else:
+		# Multi-face detection and feature_extract
+		locList = []
+		repList = []
+		for det in dets:
+			top, bottom, left, right = det.top() * int(1/downscale), det.bottom() * int(1/downscale), det.left() * int(1/downscale), det.right() * int(1/downscale)
+			
+			# Set face location: startX, startY, endX, endY
+			cur_det = dlib.rectangle(left, top, right, bottom)
+
+			shape = dlibFacePredictor(RGB, cur_det)
+			face_descriptor = np.array(dlibFaceRecognition.compute_face_descriptor(RGB, shape))
+
+			locList.append((top, bottom, left, right))
+			repList.append(face_descriptor)
+
+		return repList, locList
+
+def add_a_face(name, img_path, loaded_db_data):
+	image_entry_data = dict()
+
+	# Set path and vector
+	img = cv2.imread(img_path)
+	face_descriptors, face_locations = getFaceDescriptor(img)
+	if not face_descriptors is None:
+		# Add current data into the database
+		if not name in loaded_db_data.keys():
+			loaded_db_data[name] = []
+
+		image_entry_data["imagePath"] = img_path
+		image_entry_data["vectorRep"] = list(face_descriptors[0])
+
+		# Avoid duplicating
+		if not image_entry_data in loaded_db_data[name]:
+			loaded_db_data[name].append(image_entry_data)
+
+def prepareTrain(pathDir):
+	# Save database
+	loaded_db_data = dict()
+
+	# Load or Create a database
+	if not os.path.isfile(pathTrain):
+		with open(pathTrain, 'w') as outfile:
+			json.dump('', outfile)
+	else:
+		with open(pathTrain, 'r') as outfile:
+			loaded_db_data = json.load(outfile)
+
+	dirs = os.listdir(pathDir)
+	for dirname in dirs:
+		dir_path = os.path.join(pathDir, dirname)
+		for fil in os.listdir(dir_path):
+			add_a_face(str(dirname), os.path.join(dir_path, fil), loaded_db_data)
+
+	with open(pathTrain, 'w') as outfile:
+		json.dump(loaded_db_data, outfile)
+
+def trainSVM():
+	# To generate train dataset
+	# To generate name-label data
+	loaded_db_data = loading_database()
+	number_name_mapping = list(loaded_db_data.keys())
+	
+	# To generate train dataset list: ([n-dim vector], label)
+	training_set = training_data_generator(loaded_db_data, number_name_mapping)
+	training_set = np.array(training_set)
+
+	feature_vectors = list(training_set.transpose()[0])
+	labels = list(training_set.transpose()[1])
+
+	# To train the svm over those data
+	clf = svm.SVC(C=1, kernel='rbf', probability=True, gamma=2)
+	clf.fit(feature_vectors, labels)
+	print('Done!')
+
+	# To save the trained svm
+	joblib.dump(clf, pathSVM)
+
+def loading_database():
+	# Restore data from jsdb
+	loaded_db_data = dict()
+	if not os.path.isfile(pathTrain):
+		print("No facebank.jsdb")
+		exit()
+	else:
+		with open(pathTrain, 'r') as outfile:
+			loaded_db_data = json.load(outfile)
+
+	return loaded_db_data
+
+def training_data_generator(loaded_db_data, label_name_mapping):
+	# To convert from numberToName to NameToNumber (name_number_mapping["Alex"] = 3)
+	name_number_mapping = dict()
+	for label_index in range(len(label_name_mapping)):
+	    name_number_mapping[label_name_mapping[label_index]] = label_index
+
+	training_set = list()
+
+	for name in loaded_db_data:
+		db_name = loaded_db_data[name]
+		for image_entry_data in db_name:
+			label = name_number_mapping[name]
+			data = image_entry_data['vectorRep']
+
+			training_set.append([data, label])
+
+	return training_set
+
+def predict_using_svm(vector_representation):
+	vector_representation = np.array(vector_representation).reshape((1, ) + vector_representation.shape)
+
+	""" To predict the label using trained svm """
+	if not os.path.isfile(pathSVM):
+		print("No svm found")
+		exit()
+	else:
+		clf = joblib.load(pathSVM)
+		labels = clf.predict(vector_representation)
+
+	loaded_db_data = loading_database()
+	name_number_pair = list(loaded_db_data.keys())
+
+	# For one
+	label = labels[0]
+	label_text = name_number_pair[label]
+
+	return label_text
+
+def draw_rectangle(img, rect):
+	(top, bottom, left, right) = rect
+	cv2.rectangle(img, (left, top), (right, bottom),(0, 255, 0), 2)
+
+def draw_text(img, text, x, y):
+	cv2.putText(img, text, (x,y), cv2.FONT_HERSHEY_PLAIN, 1.5, (0, 255, 0), 2)
+
+def predict(img):
+	face_descriptors, face_locations = getFaceDescriptor(img)
+
+	if not face_descriptors is None:
+		for index in range(len(face_descriptors)):
+			label_text = predict_using_svm(face_descriptors[index])
+			return label_text
+			#draw_rectangle(img, face_locations[index])
+			#draw_text(img, label_text, face_locations[index][2], face_locations[index][1] - 5)
+
+	return None
+
+def main():
+	# Train
+	#prepareTrain(pathDirTrain)
+	#trainSVM()
+
+	# Test on one image
+	# test_img1 = cv2.imread("./8.jpg")
+	# predict_img1 = predict(test_img1)
+	# cv2.imshow('Predict', predict_img1)
+	# cv2.waitKey(0)
+	# cv2.destroyAllWindows()
+    
+	# Predict the video (WebCam)
+	cap = cv2.VideoCapture(0)
+	while True:
+		ret, frame = cap.read()
+		predict_text = predict(frame)
+		if not predict_text is None:
+			print(predict_text)
+			return predict_text
+			cap.release()
+			break
+
+	'''# Predict the video(IpCam)
+	URL = 'http://admin:@192.168.0.196:3333/MJPEG.CGI'
+	
+	ipcam = IPcamCapture(URL)
+	ipcam.start()
+	time.sleep(1)
+
+	while True:
+		img = ipcam.getframe()
+		predict_img1 = predict(img)
+		cv2.imshow('Image', predict_img1)
+		if cv2.waitKey(1) & 0xFF == ord('q'):
+			cv2.destroyAllWindows()
+			ipcam.stop()
+			break'''
+
+if __name__ == '__main__':
+	 main()
