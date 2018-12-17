@@ -1,0 +1,42 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Dec  5 14:41:28 2018
+
+@author: adi
+"""
+import FR_svm as fr
+import pickle
+import time
+import json
+import csv
+import datetime
+Info = list()
+idnum=fr.main()
+#print(idnum)
+'''
+with open('abc.jsdb', 'w') as outfile:
+    json.dump(Info, outfile)
+    outfile.close()
+# Face -> abc
+# XXXXXX_OOO.jsdb/pickle
+#file = open('abc.pickle', 'wb')
+with open('abc.jsdb', 'r') as outfile:
+    Info = json.load(outfile)
+    outfile.close()
+    
+print(Info)'''
+with open('output.csv', 'a', newline='') as csvfile:
+  # 定義欄位
+  fieldnames = ['學號', '日期&時間', '受傷地點','傷口類型','處理方法']
+
+  # 將 dictionary 寫入 CSV 檔
+  writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+  # 寫入第一列的欄位名稱
+  #writer.writeheader()
+
+  # 寫入資料
+  nowtime=datetime.datetime.now()
+  
+  writer.writerow({'學號':idnum , '日期&時間':nowtime.strftime("%Y-%m-%d %H:%M:%S"),'受傷地點': '操場','傷口類型':'擦傷','處理方法':'傷口處理'})
+  
