@@ -1,0 +1,121 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Nov  3 22:32:39 2018
+
+@author: adi
+"""
+
+from keras.layers import Conv2D,MaxPooling2D,Dense,Dropout,Flatten,Activation,Input,GlobalAveragePooling2D,BatchNormalization,Add
+from keras.models import Sequential,Model
+from keras.utils import np_utils
+from sklearn.datasets import load_files 
+from keras.optimizers import Adam
+import numpy as np
+from keras.preprocessing.image import ImageDataGenerator
+import cv2
+import os
+import imutils
+from group_norm import GroupNormalization
+
+'''def residual_block(input_tensor, kernel_size, filters, strides=(2,2)):
+    filters1, filters2, filters3 = filters
+    
+    x = Conv2D(filters1, (1,1), strides=strides, padding='same', kernel_initializer='he_normal')(input_tensor)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    
+    x = Conv2D(filters2, kernel_size, padding='same', kernel_initializer='he_normal')(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    
+    x = Conv2D(filters3, (1,1), padding='same', kernel_initializer='he_normal')(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    
+    shortcut = Conv2D(filters3, (1,1), strides=strides, padding='same', kernel_initializer='he_normal')(input_tensor)
+    shortcut = BatchNormalization()(shortcut)
+    
+    x = Add()([x,shortcut])
+    x = Activation('relu')(x)
+    
+    return x
+'''
+#pre-process
+'''traind=np.ones((150,1,128,128))
+traindy=np.empty((150))
+testd=np.ones((50,1,128,128))
+testdy=np.empty((50))'''
+train_path='D:/dataset-wound/train_data'
+test_path='D:/dataset-wound/test_data'
+'''dirst = os.listdir(train_path)
+dirste=os.listdir(test_path)
+'''
+traind= ImageDataGenerator(rotation_range=20,width_shift_range=3.0, rescale=1/255.,height_shift_range=3.0).flow_from_directory(train_path, target_size=(224,224) ,classes=['s','b','c','x'], batch_size=10)
+testd= ImageDataGenerator(rescale=1/255.).flow_from_directory(test_path,target_size=(224,224) ,classes=['s','b','c','x'], batch_size=10)
+'''
+k=0
+for i in range(len(dirst)):
+    filedir=os.listdir(train_path+"/"+dirst[i])
+    #print(i)
+    for j in range(len(filedir)):
+        img=cv2.imread(train_path+"/"+dirst[i]+"/"+filedir[j],cv2.IMREAD_GRAYSCALE)
+        #print(train_path+"/"+dirs[i]+"/"+filedir[j])
+        img=np.array(img)
+        #print(img)
+        img.resize(1,128,128)
+        traind[k]=img;
+        k=k+1
+        #print(i)
+        traindy[k]=i
+#print(traindy)
+k=0
+for i in range(len(dirste)):
+    filedir=os.listdir(test_path+"/"+dirste[i])
+    #print(i)
+    for j in range(len(filedir)):
+        img=cv2.imread(test_path+"/"+dirste[i]+"/"+filedir[j],cv2.IMREAD_GRAYSCALE)
+        #print(test_path+"/"+dirs[i]+"/"+filedir[j])
+        img=np.array(img)
+        #print(img)
+        img.resize(1,128,128)
+        testd[k]=img;
+        #print(k)
+        k=k+1
+        testdy[k]=i
+#print(testdy)
+traindy = np_utils.to_categorical(traindy, num_classes=4)
+testdy = np_utils.to_categorical(testdy, num_classes=4)
+'''
+img_input = Input(shape=(224,224,3))
+
+
+x = Conv2D(32,(3,3),activation='relu',padding='same')(img_input)
+x = Conv2D(32,(3,3),activation='relu',padding='same')(x)
+x = BatchNormalization()(x)
+x = MaxPooling2D((2,2), strides=(2,2))(x)
+
+
+x = Conv2D(64,(3,3),activation='relu',padding='same')(x)
+x = Conv2D(64,(3,3),activation='relu',padding='same')(x)
+x = BatchNormalization()(x)
+
+x = Conv2D(128,(3,3),activation='relu',padding='same')(x)
+x = Conv2D(128,(3,3),activation='relu',padding='same')(x)
+x = BatchNormalization()(x)     
+x = MaxPooling2D((2,2), strides=(2,2))(x)
+
+x = Conv2D(256,(3,3),activation='relu',padding='same')(x)
+x = Conv2D(256,(3,3),activation='relu',padding='same')(x)
+x = BatchNormalization()(x)     
+
+x = GlobalAveragePooling2D()(x)
+x = Dense(512,activation='relu')(x)
+x = Dropout(0.5)(x)
+x = Dense(4,activation='softmax')(x)
+model = Model(img_input,x)
+
+
+adam = Adam(lr=1e-4)
+model.compile(optimizer=adam,loss='categorical_crossentropy',metrics=['accuracy'])
+model.summary()
+model.fit_generator(traind, steps_per_epoch=8, validation_data=testd, validation_steps=3, epochs=100, verbose=2)
