@@ -1,0 +1,109 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Oct  3 14:53:26 2018
+
+@author: adi
+"""
+
+import cv2
+#import face_recognition_using_dlib_opencv as fr
+import numpy as np
+import dlib
+import os
+import imutils
+
+cap = cv2.VideoCapture(0)
+subjects=["","10631323","10631325"]
+dlib_detector = dlib.get_frontal_face_detector()
+face_recognizer = cv2.face.LBPHFaceRecognizer_create()
+def prepare_training_data(data_folder_path):
+    dirs = os.listdir(data_folder_path)
+    faces=[]#list to store picture
+    labels=[]#list to store label
+    for dirname in dirs:
+        if not dirname.startswith("t"):
+            continue;
+        label=int(dirname.replace("t",""))#labels come into s+label,if replace s->get only label
+        subject_dir_path = data_folder_path + "/" + dirname
+        subject_images_names = os.listdir(subject_dir_path)#get name
+        for imagename in subject_images_names:
+            if imagename.startswith("."):
+                continue; 
+            image_path = subject_dir_path + "/" + imagename
+            image=cv2.imread(image_path)
+            image = imutils.resize(image, width=700)
+            face, rect = facedetect(image)
+            face, rect = face[0], rect[0]
+            
+            if face is not None:
+                faces.append(face)#add face to list of faces
+                labels.append(label)#add label for this face
+            else:
+                print(image_path)
+ 
+    return faces, labels
+def facedetect(img):
+    locList = []
+    grayList = []
+    gray=cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)#opencv face detector expects gray images
+    dets = dlib_detector(img, 1)
+
+    if len(dets) == 0:#if no faces are detected
+        return  None , None
+    for det in dets:
+        locList.append((det.top(), det.bottom(), det.left(), det.right()))
+        grayList.append(gray[det.top():det.bottom(), det.left():det.right()])
+        
+    return grayList, locList
+
+def draw_rectangle(img, rect):
+    (top, bottom, left, right)=rect
+    cv2.rectangle(img,(left,top),(right,bottom),(0,255,0),2)
+
+def draw_text(img,text,x,y):
+    cv2.putText(img,text,(x,y),cv2.FONT_HERSHEY_PLAIN, 1.5, (0, 255, 0), 2)
+
+def predict(test_img):
+    test_img=test_img
+    img=test_img.copy()
+
+    faces, rects = facedetect(img)
+    #print(face)
+    
+    if not faces is None:
+        #print(faces, len(faces))
+        for index in range(len(faces)):
+            label,confidence= face_recognizer.predict(faces[index])
+            #print(label, confidence)
+            label_text = subjects[label]
+            
+            draw_rectangle(img, rects[index])
+            draw_text(img,label_text,rects[index][2],rects[index][1]-5)
+            return label_text
+        
+    return None
+def main():
+    faces, labels = prepare_training_data("training-data")
+    #print(len(faces))
+    #print(len(labels))
+    face_recognizer.train(faces, np.array(labels))
+    #print('Training Done!')
+    
+    while True:
+        ret, frame = cap.read()
+        predicted_text = predict(frame)
+        #print(predicted_text)
+        
+        if not predicted_text is None:
+            return(predicted_text)
+            break
+        #cv2.imshow('Video_FR', predicted_img)
+        
+        '''if cv2.waitKey(1)&0xFF==ord('q'):
+            cv2.destroyAllWindows()
+            break'''
+        
+   
+if __name__ == '__main__':
+    main()
+    
