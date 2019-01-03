@@ -8,14 +8,13 @@ Created on Sat Nov  3 22:32:39 2018
 from keras.layers import Conv2D,MaxPooling2D,Dense,Dropout,Flatten,Activation,Input,GlobalAveragePooling2D,BatchNormalization,Add
 from keras.models import Sequential,Model
 from keras.utils import np_utils
-from sklearn.datasets import load_files 
 from keras.optimizers import Adam
+from keras.callbacks import ModelCheckpoint
+from keras.applications.mobilenet_v2 import MobileNetV2
+from keras.applications.nasnet import NASNetMobile
+
 import numpy as np
 from keras.preprocessing.image import ImageDataGenerator
-import cv2
-import os
-import imutils
-from group_norm import GroupNormalization
 
 '''def residual_block(input_tensor, kernel_size, filters, strides=(2,2)):
     filters1, filters2, filters3 = filters
@@ -88,16 +87,28 @@ testdy = np_utils.to_categorical(testdy, num_classes=4)
 '''
 img_input = Input(shape=(224,224,3))
 
+mobile = MobileNetV2(weights='imagenet', include_top=False, input_shape=(224,224,3))
+#nasnetm= NASNetMobile(weights='imagenet', include_top=False, input_shape=(224,224,3))
+x = GlobalAveragePooling2D()(mobile.output)
+#x = GlobalAveragePooling2D()(nasnetm.output)
+x = Dense(1024,activation='relu')(x)
+x = Dropout(0.5)(x)
+x = Dense(4,activation='softmax')(x)
 
-x = Conv2D(32,(3,3),activation='relu',padding='same')(img_input)
-x = Conv2D(32,(3,3),activation='relu',padding='same')(x)
+model = Model(mobile.input, x)
+#model = Model(nasnetm.input, x)
+model.summary()
+
+#x = Conv2D(32,(3,3),activation='relu',padding='same')(img_input)
+#x = Conv2D(32,(3,3),activation='relu',padding='same')(x)
+#x = BatchNormalization()(x)
+#x = MaxPooling2D((2,2), strides=(2,2))(x)
+
+'''
+x = Conv2D(64,(3,3),activation='relu',padding='same')(img_input)
+x = Conv2D(64,(3,3),activation='relu',padding='same')(x)
 x = BatchNormalization()(x)
 x = MaxPooling2D((2,2), strides=(2,2))(x)
-
-
-x = Conv2D(64,(3,3),activation='relu',padding='same')(x)
-x = Conv2D(64,(3,3),activation='relu',padding='same')(x)
-x = BatchNormalization()(x)
 
 x = Conv2D(128,(3,3),activation='relu',padding='same')(x)
 x = Conv2D(128,(3,3),activation='relu',padding='same')(x)
@@ -111,11 +122,14 @@ x = BatchNormalization()(x)
 x = GlobalAveragePooling2D()(x)
 x = Dense(512,activation='relu')(x)
 x = Dropout(0.5)(x)
+x = Dense(512,activation='relu')(x)
+x = Dropout(0.5)(x)
 x = Dense(4,activation='softmax')(x)
 model = Model(img_input,x)
+'''
 
-
-adam = Adam(lr=1e-4)
+adam = Adam(lr=1e-5)
 model.compile(optimizer=adam,loss='categorical_crossentropy',metrics=['accuracy'])
+checkpoint = ModelCheckpoint('wound0103mobile.h5', monitor='val_loss', save_best_only=True)
 model.summary()
-model.fit_generator(traind, steps_per_epoch=8, validation_data=testd, validation_steps=3, epochs=100, verbose=2)
+model.fit_generator(traind, steps_per_epoch=8, validation_data=testd, validation_steps=13, epochs=200, verbose=1, callbacks=[checkpoint])
