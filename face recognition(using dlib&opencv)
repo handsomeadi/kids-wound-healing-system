@@ -1,21 +1,45 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Oct  3 14:53:26 2018
+Created on Thu Sep 13 15:36:33 2018
 
 @author: adi
 """
 
 import cv2
-#import face_recognition_using_dlib_opencv as fr
+import os
 import numpy as np
 import dlib
-import os
-import imutils
+import time
 
-cap = cv2.VideoCapture(0)
-subjects=["","10631323","10631325"]
+subjects=["","Yapian","Adi"]
 dlib_detector = dlib.get_frontal_face_detector()
 face_recognizer = cv2.face.LBPHFaceRecognizer_create()
+
+
+#face detection function(using LBP)
+def facedetect(img):
+    locList = []
+    grayList = []
+    gray=cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)#opencv face detector expects gray images
+    # face_cascade = cv2.CascadeClassifier('/home/yu-cian/opencv/data/lbpcascades/lbpcascade_frontalface.xml')
+    # face_cascade.load('/home/yu-cian/opencv/data/lbpcascades/lbpcascade_frontalface.xml')
+    # faces = face_cascade.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5);#some images may be closer to camera than others->need to detect multiscale
+    dets = dlib_detector(img, 1)
+
+    if len(dets) == 0:#if no faces are detected
+        return  None , None
+    
+    #print(len(dets))
+
+    #assume that there is only a face in the picture
+    #top, bottom, left, right = dets[0].top(), dets[0].bottom(), dets[0].left(), dets[0].right()
+    for det in dets:
+        locList.append((det.top(), det.bottom(), det.left(), det.right()))
+        grayList.append(gray[det.top():det.bottom(), det.left():det.right()])
+        
+    return grayList, locList
+
+#read images and detect
 def prepare_training_data(data_folder_path):
     dirs = os.listdir(data_folder_path)
     faces=[]#list to store picture
@@ -31,7 +55,7 @@ def prepare_training_data(data_folder_path):
                 continue; 
             image_path = subject_dir_path + "/" + imagename
             image=cv2.imread(image_path)
-            image = imutils.resize(image, width=700)
+            
             face, rect = facedetect(image)
             face, rect = face[0], rect[0]
             
@@ -42,19 +66,24 @@ def prepare_training_data(data_folder_path):
                 print(image_path)
  
     return faces, labels
-def facedetect(img):
-    locList = []
-    grayList = []
-    gray=cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)#opencv face detector expects gray images
-    dets = dlib_detector(img, 1)
+'''
+print("Preparing data...")
+faces, labels = prepare_training_data("training-data")
+# print("Data prepared")
+#print total faces and labels
+print("Total faces: ", len(faces))
+print("Total labels: ", len(labels))
+np.asarray(labels)
 
-    if len(dets) == 0:#if no faces are detected
-        return  None , None
-    for det in dets:
-        locList.append((det.top(), det.bottom(), det.left(), det.right()))
-        grayList.append(gray[det.top():det.bottom(), det.left():det.right()])
-        
-    return grayList, locList
+
+#recognition
+#for i in range(1,31):
+ #   print(labels[i])
+#create our LBPH face recognizer 
+face_recognizer = cv2.face.LBPHFaceRecognizer_create()
+#train
+face_recognizer.train(faces, np.array(labels))
+'''
 
 def draw_rectangle(img, rect):
     (top, bottom, left, right)=rect
@@ -71,39 +100,27 @@ def predict(test_img):
     #print(face)
     
     if not faces is None:
-        #print(faces, len(faces))
+        print(faces, len(faces))
         for index in range(len(faces)):
             label,confidence= face_recognizer.predict(faces[index])
             #print(label, confidence)
             label_text = subjects[label]
-            
+
             draw_rectangle(img, rects[index])
             draw_text(img,label_text,rects[index][2],rects[index][1]-5)
-            return label_text
-        
-    return None
-def main():
-    faces, labels = prepare_training_data("training-data")
-    #print(len(faces))
-    #print(len(labels))
-    face_recognizer.train(faces, np.array(labels))
-    #print('Training Done!')
     
-    while True:
-        ret, frame = cap.read()
-        predicted_text = predict(frame)
-        #print(predicted_text)
-        
-        if not predicted_text is None:
-            return(predicted_text)
-            break
-        #cv2.imshow('Video_FR', predicted_img)
-        
-        '''if cv2.waitKey(1)&0xFF==ord('q'):
-            cv2.destroyAllWindows()
-            break'''
-        
-   
-if __name__ == '__main__':
-    main()
-    
+    return img
+'''
+print("Predicting images...")
+test_img1 = cv2.imread("test-data/test1.jpg")
+test_img2 = cv2.imread("test-data/test2.jpg")
+
+# #predict
+predicted_img1 = predict(test_img1)
+predicted_img2 = predict(test_img2)
+# #display both images
+cv2.imshow(subjects[1], predicted_img1)
+cv2.imshow(subjects[2], predicted_img2)
+cv2.waitKey(0)
+cv2.destroyAllWindows() 
+'''
