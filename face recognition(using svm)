@@ -224,17 +224,19 @@ def main():
 	# cv2.destroyAllWindows()
     
 	# Predict the video (WebCam)
-	cap = cv2.VideoCapture(0)
-	while True:
-		ret, frame = cap.read()
-		predict_text = predict(frame)
-		if not predict_text is None:
-			print(predict_text)
-			return predict_text
-			cap.release()
-			break
+    predict_text = None
+    cap = cv2.VideoCapture(0)
+    while True:
+        ret, frame = cap.read()
+        predict_text = predict(frame)
+        if not predict_text is None:
+            print(predict_text)
+            cap.release()
+            break
+    
+    return predict_text
 
-	'''# Predict the video(IpCam)
+'''# Predict the video(IpCam)
 	URL = 'http://admin:@192.168.0.196:3333/MJPEG.CGI'
 	
 	ipcam = IPcamCapture(URL)
