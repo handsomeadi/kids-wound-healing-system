@@ -1,0 +1,47 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Dec 19 15:23:18 2018
+
+@author: adi
+"""
+from keras.models import load_model
+from keras.preprocessing import image
+import numpy as np
+import cv2
+def pre():
+    classes=['擦傷','瘀青','割裂傷','抓傷']
+    cap = cv2.VideoCapture(0)
+    print('======== Load Model =========')
+    model=load_model("wound_MobileNetV2.h5")
+    print('======== Load Done =========')
+    #img = image.load_img("image 1.jpg", target_size=(224, 224))
+    '''img=cv2.imread("1.jpeg")
+    img=cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img.resize(224,224,3)'''
+    while True:
+        ret, img = cap.read()
+        img=cv2.resize(img,(224,224))
+        #img=cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img_tensor = image.img_to_array(img)                    # (height, width, channels)
+        img_tensor=img_tensor/255.
+        img_tensor = np.expand_dims(img_tensor, axis=0)  
+        pred=model.predict(img_tensor)
+        cv2.imshow('Video_FR', img)
+        if cv2.waitKey(1)&0xFF==ord('q'):
+            cv2.destroyAllWindows()
+            break
+        print(pred)
+        if np.max(pred)>0.6:
+            cv2.destroyAllWindows()
+            break
+    return classes[np.argmax(pred)]     
+'''
+        img_tensor = image.img_to_array(img)                 # (height, width, channels)
+        img_tensor=img_tensor/255.
+        #print(img_tensor)
+        img_tensor = np.expand_dims(img_tensor, axis=0)  
+        pred=model.predict(img_tensor)
+        print(pred)
+        
+        print(classes[np.argmax(pred)])
+        '''
