@@ -1,0 +1,129 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Dec 13 16:33:58 2018
+
+@author: adi
+"""
+
+import grpc
+import robohon_message_pb2
+import robohon_message_pb2_grpc
+import wound_predict as wp
+from concurrent import futures
+import FR_svm as fr
+import data
+def faceinfo():
+    global input_s
+    input_s=fr.main()
+    print(input_s)
+    return input_s
+def woundinfo():
+    global input_s
+    input_s=wp.pre()
+    print(input_s)
+    return input_s
+class Servicer(robohon_message_pb2_grpc.RoBoHoNMessageServicer):
+    def __init__(self):
+        self.request = None
+    def RequestInfo(self, request, context):
+        #Get info to send
+        self.request=request
+        #print(self.request.info_type)
+        global input_s
+        if input_s == None:
+            sentence = 'empty'
+        else:
+            sentence = input_s
+            #Wait for RoBoHoN to send back request "Finish"
+            if request.info_type == "Finish":
+                input_s = None
+            else:
+                input_s = 'empty'
+        return robohon_message_pb2.desktop(sentence=sentence)
+    
+    def requestinfo(self):
+        if self.request == None:
+            return None
+        return self.request.info_type
+
+def serve():
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    a=Servicer()
+    robohon_message_pb2_grpc.add_RoBoHoNMessageServicer_to_server(a, server)
+    server.add_insecure_port('[::]:12345')
+    server.start()
+    total=0
+    wrong=0
+    idnum=0
+    wound=''
+    measure=''
+    place=''
+    global input_s
+    try:
+        while True:
+            input_s='get'
+            req=a.requestinfo()
+            print(req)
+            if not req is None and not req == "sentence": 
+                print(req)
+            if req=='face':
+                print("Face Recognition!")
+                idnum=faceinfo()
+                print(idnum)
+                total=total+1
+            elif req=='incorrect':
+                idnum=a.requestinfo()
+            elif req=='woundpredict':
+                print("wound recognition!")
+                wound=woundinfo()
+                if wound=='擦傷' or wound=='割裂傷' or wound=='抓傷':
+                    measure='傷口處理'
+                elif wound=='瘀青' or wound=='扭傷'or wound=='拉傷':
+                    measure='冰敷'
+                elif wound=='頭痛' or wound=='肚子痛' or wound=='頭暈':
+                    measure='護理師治療'
+                elif wound=='肌肉痠痛':
+                    measure='肌樂肌貼伸展'
+                elif wound=='抽筋':
+                    measure='伸展'
+            elif req=='wincorrect':
+                wound=a.requestinfo()
+                if wound=='擦傷' or wound=='割裂傷' or wound=='抓傷':
+                    measure='傷口處理'
+                elif wound=='瘀青' or wound=='扭傷'or wound=='拉傷':
+                    measure='冰敷'
+                elif wound=='頭痛' or wound=='肚子痛' or wound=='頭暈':
+                    measure='護理師治療'
+                elif wound=='肌肉痠痛':
+                    measure='肌樂肌貼伸展'
+                elif wound=='抽筋':
+                    measure='伸展'
+                wrong=wrong+1
+            elif req=='elsewound':
+                wound=a.requestinfo()
+                if wound=='擦傷' or wound=='割裂傷' or wound=='抓傷':
+                    measure='傷口處理'
+                elif wound=='瘀青' or wound=='扭傷'or wound=='拉傷':
+                    measure='冰敷'
+                elif wound=='頭痛' or wound=='肚子痛' or wound=='頭暈':
+                    measure='護理師治療'
+                elif wound=='肌肉痠痛':
+                    measure='肌樂肌貼伸展'
+                elif wound=='抽筋':
+                    measure='伸展'
+            if req=='place':
+                place=a.requestinfo()
+            data.write(idnum,wound,measure,place)
+    except KeyboardInterrupt:
+        print('total user:')
+        print(total)
+        print('wrong predict:')
+        print(wrong)
+        print('accuracy:')
+        print((float)(total-wrong)/total)
+        server.stop(0)
+if __name__ == '__main__':
+    global input_s
+    input_s = None
+
+    serve()
