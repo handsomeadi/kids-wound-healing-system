@@ -14,7 +14,9 @@ import FR_svm as fr
 import data
 def faceinfo():
     global input_s
-    input_s=fr.main()
+    getface = fr.main()
+    input_s = " ".join(getface)
+    #input_s=fr.main()
     print(input_s)
     return input_s
 def woundinfo():
@@ -39,6 +41,7 @@ class Servicer(robohon_message_pb2_grpc.RoBoHoNMessageServicer):
                 input_s = None
             else:
                 input_s = 'empty'
+        #print('Sentence: ', sentence)
         return robohon_message_pb2.desktop(sentence=sentence)
     
     def requestinfo(self):
@@ -54,25 +57,28 @@ def serve():
     server.start()
     total=0
     wrong=0
-    idnum=0
     wound=''
     measure=''
     place=''
+    idnum=0
     global input_s
     try:
         while True:
-            input_s='get'
+            #input_s='get'
             req=a.requestinfo()
-            print(req)
+            #print(req)
             if not req is None and not req == "sentence": 
                 print(req)
             if req=='face':
                 print("Face Recognition!")
                 idnum=faceinfo()
-                print(idnum)
                 total=total+1
             elif req=='incorrect':
                 idnum=a.requestinfo()
+                while idnum=='sentence':
+                    idnum=a.requestinfo()
+                print(idnum)
+            
             elif req=='woundpredict':
                 print("wound recognition!")
                 wound=woundinfo()
@@ -86,7 +92,7 @@ def serve():
                     measure='肌樂肌貼伸展'
                 elif wound=='抽筋':
                     measure='伸展'
-            elif req=='wincorrect':
+            '''elif req=='wincorrect':
                 wound=a.requestinfo()
                 if wound=='擦傷' or wound=='割裂傷' or wound=='抓傷':
                     measure='傷口處理'
@@ -113,14 +119,14 @@ def serve():
                     measure='伸展'
             if req=='place':
                 place=a.requestinfo()
-            data.write(idnum,wound,measure,place)
+            data.write(idnum,wound,measure,place)'''
     except KeyboardInterrupt:
-        print('total user:')
+        '''print('total user:')
         print(total)
         print('wrong predict:')
         print(wrong)
         print('accuracy:')
-        print((float)(total-wrong)/total)
+        print((float)(total-wrong)/total)'''
         server.stop(0)
 if __name__ == '__main__':
     global input_s
