@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """
+20190109
 Created on Wed Dec 19 15:23:18 2018
 
 @author: adi
@@ -8,11 +9,12 @@ from keras.models import load_model
 from keras.preprocessing import image
 import numpy as np
 import cv2
+
 def pre():
     classes=['擦傷','瘀青','割裂傷','抓傷']
     cap = cv2.VideoCapture(0)
     print('======== Load Model =========')
-    model=load_model("wound_MobileNetV2.h5")
+    model=load_model("wound0103MOBILENET.h5")
     print('======== Load Done =========')
     #img = image.load_img("image 1.jpg", target_size=(224, 224))
     '''img=cv2.imread("1.jpeg")
