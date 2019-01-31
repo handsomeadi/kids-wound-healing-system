@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
+20190131
 Created on Sat Nov  3 22:32:39 2018
-20190112
+
 @author: adi
 """
 
@@ -9,9 +10,10 @@ from keras.layers import Conv2D,MaxPooling2D,Dense,Dropout,Flatten,Activation,In
 from keras.models import Sequential,Model
 from keras.utils import np_utils
 from keras.optimizers import Adam
-from keras.callbacks import ModelCheckpoint
+from keras.callbacks import ModelCheckpoint,TensorBoard
 from keras.applications.mobilenet_v2 import MobileNetV2
 from keras.applications.nasnet import NASNetMobile
+from weightnorm import AdamWithWeightnorm 
 
 import numpy as np
 from keras.preprocessing.image import ImageDataGenerator
@@ -34,6 +36,7 @@ model.summary()
 
 adam = Adam(lr=1e-5)
 model.compile(optimizer=adam,loss='categorical_crossentropy',metrics=['accuracy'])
-checkpoint = ModelCheckpoint('wound0112mobile.h5', monitor='val_loss', save_best_only=True)
+checkpoint = ModelCheckpoint('wound0131mobileweightnorm.h5', monitor='val_loss', save_best_only=True)
+tbCallBack = TensorBoard(log_dir='./Graph', histogram_freq=0, write_graph=True, write_images=True)
 model.summary()
-model.fit_generator(traind, steps_per_epoch=8, validation_data=testd, validation_steps=13, epochs=200, verbose=1, callbacks=[checkpoint])
+model.fit_generator(traind, steps_per_epoch=8, validation_data=testd, validation_steps=13, epochs=200, verbose=1, callbacks=[checkpoint,tbCallBack])
