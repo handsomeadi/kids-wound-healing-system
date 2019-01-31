@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """
+20190131
 Created on Thu Dec 13 16:33:58 2018
 
 @author: adi
@@ -22,7 +23,7 @@ def faceinfo():
 def woundinfo(wpclass):
     global input_s
     input_s=wpclass.pre()
-    print(input_s)
+    #print(input_s)
     return input_s
 class Servicer(robohon_message_pb2_grpc.RoBoHoNMessageServicer):
     def __init__(self):
@@ -62,14 +63,19 @@ def serve():
     measure=''
     place=''
     idnum=0
-    global input_s
+    global input_s, prev_req
     try:
         while True:
             #input_s='get'
             req=a.requestinfo()
             #print(req)
-            if not req is None and not req == "sentence": 
+            if not req is None and not req == "sentence" and not req == prev_req: 
                 print(req)
+            else:
+                continue
+                
+            prev_req = req
+            
             if req=='face':
                 print("Face Recognition!")
                 idnum=faceinfo()
@@ -87,6 +93,42 @@ def serve():
             if req=='woundpredict':
                 print("wound recognition!")
                 wound=woundinfo(wpclass)
+                '''if wound=='擦傷' or wound=='割裂傷' or wound=='抓傷':
+                    measure='傷口處理'
+                elif wound=='瘀青' or wound=='扭傷'or wound=='拉傷':
+                    measure='冰敷'
+                elif wound=='頭痛' or wound=='肚子痛' or wound=='頭暈':
+                    measure='護理師治療'
+                elif wound=='肌肉痠痛':
+                    measure='肌樂肌貼伸展'
+                elif wound=='抽筋':
+                    measure='伸展' '''
+                #data.write(idnum,wound,measure,place)
+            if req=='擦傷' or req=='割裂傷' or req=='抓傷':
+                print("Get")
+                measure='傷口處理'
+                data.write(idnum,req,measure,place)
+            elif req=='瘀青' or req=='扭傷'or req=='拉傷':
+                measure='冰敷'
+                data.write(idnum,req,measure,place)
+            elif req=='頭痛' or req=='肚子痛' or req=='頭暈':
+                place=''
+                measure='護理師治療'
+                data.write(idnum,req,measure,place)
+            elif req=='肌肉痠痛':
+                place=''
+                measure='肌樂肌貼伸展'
+                data.write(idnum,req,measure,place)
+            elif req=='抽筋':
+                place=''
+                measure='伸展'
+                data.write(idnum,req,measure,place)
+                #print('write data')
+                #break
+            '''elif req=='wincorrect':
+                while wound=='sentence':
+                    wound=a.requestinfo()
+                #wound=a.requestinfo()
                 if wound=='擦傷' or wound=='割裂傷' or wound=='抓傷':
                     measure='傷口處理'
                 elif wound=='瘀青' or wound=='扭傷'or wound=='拉傷':
@@ -98,22 +140,14 @@ def serve():
                 elif wound=='抽筋':
                     measure='伸展'
                 data.write(idnum,wound,measure,place)
-            elif req=='wincorrect':
-                wound=a.requestinfo()
-                if wound=='擦傷' or wound=='割裂傷' or wound=='抓傷':
-                    measure='傷口處理'
-                elif wound=='瘀青' or wound=='扭傷'or wound=='拉傷':
-                    measure='冰敷'
-                elif wound=='頭痛' or wound=='肚子痛' or wound=='頭暈':
-                    measure='護理師治療'
-                elif wound=='肌肉痠痛':
-                    measure='肌樂肌貼伸展'
-                elif wound=='抽筋':
-                    measure='伸展'
-                data.write(idnum,wound,measure,place)
+                req='written'
+                print('write data')
                 wrong=wrong+1
+                #break
             elif req=='elsewound':
                 wound=a.requestinfo()
+                while place=='place' or place=='sentence':
+                    place=a.requestinfo()
                 if wound=='擦傷' or wound=='割裂傷' or wound=='抓傷':
                     measure='傷口處理'
                 elif wound=='瘀青' or wound=='扭傷'or wound=='拉傷':
@@ -125,6 +159,9 @@ def serve():
                 elif wound=='抽筋':
                     measure='伸展'
                 data.write(idnum,wound,measure,place)
+                print('write data')
+                #break'''
+        #data.write(idnum,wound,measure,place)
     except KeyboardInterrupt:
         '''print('total user:')
         print(total)
@@ -134,7 +171,7 @@ def serve():
         print((float)(total-wrong)/total)'''
         server.stop(0)
 if __name__ == '__main__':
-    global input_s
-    input_s = None
+    global input_s, prev_req
+    input_s, prev_req = None, None
 
     serve()
