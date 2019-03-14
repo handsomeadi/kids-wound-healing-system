@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-20190131
 Created on Thu Dec 13 16:33:58 2018
-
+20190314
 @author: adi
 """
 
@@ -82,14 +81,16 @@ def serve():
                 total=total+1
             elif req=='incorrect':
                 idnum=a.requestinfo()
-                while idnum=='sentence':
+                while idnum=='incorrect'or idnum =='sentence':
                     idnum=a.requestinfo()
+                idnum=idnum.replace('-','')
                 print(idnum)
             if req=='place':
                 place=a.requestinfo()
                 while place=='place' or place=='sentence':
                     place=a.requestinfo()
-                #print(place)
+                place=place.lstrip('在')
+                print(place)
             if req=='woundpredict':
                 print("wound recognition!")
                 wound=woundinfo(wpclass)
